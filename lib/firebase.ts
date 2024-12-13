@@ -13,19 +13,11 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
-let db: Firestore | undefined;
-let storage: FirebaseStorage | undefined;
+// Initialize Firebase only if it hasn't been initialized
+let app: FirebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+let auth: Auth = getAuth(app);
+let db: Firestore = getFirestore(app);
+let storage: FirebaseStorage = getStorage(app);
 
-function initializeFirebase() {
-  if (!app && typeof window !== 'undefined') {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-  }
-}
-
-export { initializeFirebase, app, auth, db, storage };
+export { app, auth, db, storage };
 

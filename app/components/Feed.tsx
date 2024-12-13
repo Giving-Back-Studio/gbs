@@ -39,15 +39,15 @@ export default function Feed() {
   }, [inView])
 
   const fetchOpportunities = async () => {
-    if (loading) return
-    setLoading(true)
+    if (loading || !db) return;
+    setLoading(true);
 
     try {
       let opportunitiesQuery = query(
         collection(db, 'opportunities'),
         orderBy('createdAt', 'desc'),
         limit(PAGE_SIZE)
-      )
+      );
 
       if (lastVisible) {
         opportunitiesQuery = query(
@@ -55,7 +55,7 @@ export default function Feed() {
           orderBy('createdAt', 'desc'),
           startAfter(lastVisible),
           limit(PAGE_SIZE)
-        )
+        );
       }
 
       if (selectedTag) {
@@ -63,44 +63,44 @@ export default function Feed() {
           collection(db, 'opportunities'),
           orderBy('createdAt', 'desc'),
           limit(PAGE_SIZE)
-        )
+        );
       }
 
-      const snapshot = await getDocs(opportunitiesQuery)
+      const snapshot = await getDocs(opportunitiesQuery);
 
       const newOpportunities = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Opportunity[]
+      })) as Opportunity[];
 
       if (selectedTag) {
-        const filteredOpportunities = newOpportunities.filter(opp => opp.tags.includes(selectedTag))
-        setOpportunities(prev => [...prev, ...filteredOpportunities])
+        const filteredOpportunities = newOpportunities.filter(opp => opp.tags.includes(selectedTag));
+        setOpportunities(prev => [...prev, ...filteredOpportunities]);
       } else {
-        setOpportunities(prev => [...prev, ...newOpportunities])
+        setOpportunities(prev => [...prev, ...newOpportunities]);
       }
 
       if (snapshot.docs.length > 0) {
-        setLastVisible(snapshot.docs[snapshot.docs.length - 1])
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
       } else {
-        setLastVisible(null)
+        setLastVisible(null);
       }
 
       // Update all tags
-      const tags = newOpportunities.flatMap(opp => opp.tags)
-      setAllTags(prev => Array.from(new Set([...prev, ...tags])))
+      const tags = newOpportunities.flatMap(opp => opp.tags);
+      setAllTags(prev => Array.from(new Set([...prev, ...tags])));
     } catch (error) {
-      console.error('Error fetching opportunities:', error)
+      console.error('Error fetching opportunities:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleTagClick = (tag: string) => {
-    setSelectedTag(tag === selectedTag ? null : tag)
-    setOpportunities([])
-    setLastVisible(null)
-  }
+    setSelectedTag(tag === selectedTag ? null : tag);
+    setOpportunities([]);
+    setLastVisible(null);
+  };
 
   return (
     <div>

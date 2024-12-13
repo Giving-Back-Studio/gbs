@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react'
 import { User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { initializeFirebase, auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 
 type AuthContextType = {
   user: User | null;
@@ -18,18 +18,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-      initializeFirebase();
-      if (auth) {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          setUser(user);
-          setLoading(false);
-        });
+    if (auth) {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setLoading(false);
+      });
 
-        return () => unsubscribe();
-      }
+      return () => unsubscribe();
     } else {
-      console.warn('Firebase configuration is missing. Auth functionality will be limited.');
+      console.warn('Auth is not initialized');
       setLoading(false);
     }
   }, []);
@@ -38,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (auth) {
       await signInWithEmailAndPassword(auth, email, password);
     } else {
-      console.error('Auth is not initialized');
+      throw new Error('Auth is not initialized');
     }
   };
 
@@ -46,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (auth) {
       await createUserWithEmailAndPassword(auth, email, password);
     } else {
-      console.error('Auth is not initialized');
+      throw new Error('Auth is not initialized');
     }
   };
 
@@ -54,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (auth) {
       await signOut(auth);
     } else {
-      console.error('Auth is not initialized');
+      throw new Error('Auth is not initialized');
     }
   };
 
