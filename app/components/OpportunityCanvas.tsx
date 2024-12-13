@@ -44,7 +44,10 @@ export default function OpportunityCanvas({ initialContent = '' }: OpportunityCa
   const handleAddTag = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagInput.trim()) {
       e.preventDefault()
-      setTags(prev => [...new Set([...prev, tagInput.trim()])])
+      setTags(prev => {
+        const newTag = tagInput.trim()
+        return prev.includes(newTag) ? prev : [...prev, newTag]
+      })
       setTagInput('')
     }
   }, [tagInput])
