@@ -36,44 +36,8 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      <section className="bg-gray-50 dark:bg-gray-900 py-16 sm:py-24 lg:py-32">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center brand-gradient mb-12">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-            {[
-              {
-                icon: Lightbulb,
-                title: "Spark Your Idea",
-                description: "Input your social impact concept and let our AI-powered platform help structure it into a solid plan."
-              },
-              {
-                icon: Users,
-                title: "Collaborate & Refine",
-                description: "Connect with like-minded individuals, gather feedback, and iterate on your idea to make it stronger."
-              },
-              {
-                icon: Rocket,
-                title: "Launch Your Impact",
-                description: "Transform your refined plan into action, supported by a community of changemakers and resources."
-              }
-            ].map((step, index) => (
-              <Card key={index} className="text-center brand-hover">
-                <CardContent className="pt-6">
-                  <step.icon className="mx-auto h-12 w-12 text-blue-600 mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-300">{step.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="opportunities-feed" className="py-16 sm:py-24">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <Feed />
-        </div>
+      <section id="opportunities-feed" className="container py-16">
+        <Feed />
       </section>
     </div>
   )

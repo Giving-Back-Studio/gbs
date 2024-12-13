@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Card } from '@/components/ui/card'
@@ -19,8 +19,13 @@ export default function Create() {
     console.log('Suggestion:', suggestion)
   }
 
-  if (typeof window !== 'undefined' && !user) {
-    router.push('/login')
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !user) {
+      router.push('/login')
+    }
+  }, [user, router])
+
+  if (!user) {
     return null
   }
 
