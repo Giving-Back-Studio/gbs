@@ -14,14 +14,19 @@ import { useRouter } from 'next/navigation'
 interface OpportunityCanvasProps {
   initialContent?: {
     title: string;
-    nextSteps: string[];
-    connections: string[];
+    description: string;
+    sections: {
+      nextSteps: { heading: string; items: string[] };
+      connections: { heading: string; items: string[] };
+    };
     tags: string[];
+    status: 'draft' | 'published';
   } | null;
 }
 
 export default function OpportunityCanvas({ initialContent }: OpportunityCanvasProps) {
-  const [tags, setTags] = useState<string[]>([])
+  const [title, setTitle] = useState(initialContent?.title || '')
+  const [tags, setTags] = useState<string[]>(initialContent?.tags || [])
   const [tagInput, setTagInput] = useState('')
   const { user } = useAuth()
   const router = useRouter()
@@ -44,20 +49,86 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
         <li>Person or role 3</li>
       </ul>
     `,
+    editorProps: {
+      attributes: {
+        class: 'prose max-w-none focus:outline-none'
+      }
+    },
+    onCreate: ({ editor }) => {
+      if (initialContent) {
+        editor.commands.setContent(formatInitialContent(initialContent))
+      }
+    }
   })
+
+  const formatInitialContent = (content: OpportunityCanvasProps['initialContent']) => {
+    if (!content) return '';
+    
+    return `
+      <h1 class="text-2xl font-bold mb-4">${content.title}</h1>
+      
+      <div class="mb-6">
+        <p class="text-lg">${content.description}</p>
+      </div>
+      
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-3">${content.sections.nextSteps.heading}</h2>
+        <ul class="space-y-2">
+          ${content.sections.nextSteps.items.map(step => 
+            `<li class="flex items-start">
+              <span class="mr-2">•</span>
+              <span>${step}</span>
+            </li>`
+          ).join('')}
+        </ul>
+      </div>
+      
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-3">${content.sections.connections.heading}</h2>
+        <ul class="space-y-2">
+          ${content.sections.connections.items.map(connection => 
+            `<li class="flex items-start">
+              <span class="mr-2">•</span>
+              <span>${connection}</span>
+            </li>`
+          ).join('')}
+        </ul>
+      </div>
+    `
+  }
 
   useEffect(() => {
     if (initialContent && editor) {
       const content = `
-        <h1>${initialContent.title}</h1>
-        <h2>Next Steps</h2>
-        <ul>
-          ${initialContent.nextSteps.map(step => `<li>${step}</li>`).join('')}
-        </ul>
-        <h2>Who I'm Looking to Connect With</h2>
-        <ul>
-          ${initialContent.connections.map(connection => `<li>${connection}</li>`).join('')}
-        </ul>
+        <h1 class="text-2xl font-bold mb-4">${initialContent.title}</h1>
+        
+        <div class="mb-6">
+          <p class="text-lg">${initialContent.description}</p>
+        </div>
+        
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold mb-3">${initialContent.sections.nextSteps.heading}</h2>
+          <ul class="space-y-2">
+            ${initialContent.sections.nextSteps.items.map(step => 
+              `<li class="flex items-start">
+                <span class="mr-2">•</span>
+                <span>${step}</span>
+              </li>`
+            ).join('')}
+          </ul>
+        </div>
+        
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold mb-3">${initialContent.sections.connections.heading}</h2>
+          <ul class="space-y-2">
+            ${initialContent.sections.connections.items.map(connection => 
+              `<li class="flex items-start">
+                <span class="mr-2">•</span>
+                <span>${connection}</span>
+              </li>`
+            ).join('')}
+          </ul>
+        </div>
       `
       editor.commands.setContent(content)
       setTags(initialContent.tags)
@@ -80,15 +151,18 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
   }, [])
 
   const handleSave = useCallback(async () => {
-    if (!user) {
-      alert('You must be logged in to save an opportunity.')
+    if (!user || !title.trim()) {
+      alert('Please provide a title for your opportunity.')
       return
     }
 
     try {
       const opportunityData = {
+        title: title.trim(),
         content: editor?.getHTML(),
+        description: editor?.getText().slice(0, 200) + '...', // First 200 chars as description
         tags,
+        status: 'draft',
         createdBy: user.uid,
         createdAt: serverTimestamp(),
         engagementCount: 0,
@@ -102,10 +176,43 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
       console.error('Error saving opportunity:', error)
       alert('Failed to save opportunity. Please try again.')
     }
-  }, [editor, tags, user, router])
+  }, [editor, title, tags, user, router])
+
+  const handlePublish = async () => {
+    if (!user || !title.trim()) {
+      alert('Please provide a title for your opportunity.')
+      return
+    }
+    
+    try {
+      const opportunityData = {
+        title: title.trim(),
+        content: editor?.getHTML(),
+        description: editor?.getText().slice(0, 200) + '...', // First 200 chars as description
+        tags,
+        status: 'published',
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        engagementCount: 0,
+        likeCount: 0,
+      }
+
+      const docRef = await addDoc(collection(db, 'opportunities'), opportunityData)
+      router.push(`/opportunity/${docRef.id}`)
+    } catch (error) {
+      console.error('Error publishing opportunity:', error)
+    }
+  }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <Input
+        type="text"
+        placeholder="Enter opportunity title..."
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="text-xl font-bold"
+      />
       <div className="border rounded-md p-4 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all duration-200">
         <EditorContent editor={editor} className="prose max-w-none focus:outline-none" />
       </div>
@@ -127,6 +234,7 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
         />
       </div>
       <Button className="w-full" onClick={handleSave}>Save Opportunity</Button>
+      <Button className="w-full" onClick={handlePublish}>Publish Opportunity</Button>
     </div>
   )
 }

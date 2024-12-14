@@ -7,15 +7,20 @@ import { Button } from "@/components/ui/button"
 import { Users, ArrowRight, ThumbsUp } from 'lucide-react'
 import Link from 'next/link'
 import { useInView } from 'react-intersection-observer'
-import { collection, query, orderBy, limit, startAfter, getDocs, DocumentData } from 'firebase/firestore'
+import { collection, query, orderBy, limit, startAfter, getDocs, DocumentData, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 interface Opportunity {
   id: string
   title: string
+  description: string
+  content: string
   engagementCount: number
   likeCount: number
   tags: string[]
+  status: 'draft' | 'published'
+  createdAt: any
+  createdBy: string
 }
 
 const PAGE_SIZE = 9
@@ -43,41 +48,38 @@ export default function Feed() {
     setLoading(true);
 
     try {
-      let opportunitiesQuery = query(
+      let baseQuery = query(
         collection(db, 'opportunities'),
-        orderBy('createdAt', 'desc'),
-        limit(PAGE_SIZE)
+        where('status', '==', 'published')
       );
 
+      baseQuery = query(baseQuery, orderBy('createdAt', 'desc'));
+
       if (lastVisible) {
-        opportunitiesQuery = query(
-          collection(db, 'opportunities'),
-          orderBy('createdAt', 'desc'),
-          startAfter(lastVisible),
-          limit(PAGE_SIZE)
-        );
+        baseQuery = query(baseQuery, startAfter(lastVisible));
       }
 
-      if (selectedTag) {
-        opportunitiesQuery = query(
-          collection(db, 'opportunities'),
-          orderBy('createdAt', 'desc'),
-          limit(PAGE_SIZE)
-        );
-      }
+      const finalQuery = query(baseQuery, limit(PAGE_SIZE));
 
-      const snapshot = await getDocs(opportunitiesQuery);
+      const snapshot = await getDocs(finalQuery);
 
       const newOpportunities = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Opportunity[];
 
-      if (selectedTag) {
-        const filteredOpportunities = newOpportunities.filter(opp => opp.tags.includes(selectedTag));
-        setOpportunities(prev => [...prev, ...filteredOpportunities]);
+      if (!lastVisible) {
+        setOpportunities(selectedTag 
+          ? newOpportunities.filter(opp => opp.tags.includes(selectedTag))
+          : newOpportunities
+        );
       } else {
-        setOpportunities(prev => [...prev, ...newOpportunities]);
+        setOpportunities(prev => {
+          const updatedOpps = selectedTag
+            ? newOpportunities.filter(opp => opp.tags.includes(selectedTag))
+            : newOpportunities;
+          return [...prev, ...updatedOpps];
+        });
       }
 
       if (snapshot.docs.length > 0) {
@@ -86,11 +88,14 @@ export default function Feed() {
         setLastVisible(null);
       }
 
-      // Update all tags
       const tags = newOpportunities.flatMap(opp => opp.tags);
       setAllTags(prev => Array.from(new Set([...prev, ...tags])));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching opportunities:', error);
+      if (error.code === 'permission-denied') {
+        setOpportunities([]);
+        setAllTags([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -106,9 +111,9 @@ export default function Feed() {
     <div>
       <h2 className="text-3xl sm:text-4xl font-bold brand-gradient mb-8">Explore Opportunities</h2>
       <div className="mb-6 flex flex-wrap gap-2">
-        {allTags.map(tag => (
+        {allTags.map((tag, index) => (
           <Badge
-            key={tag}
+            key={`tag-${tag}-${index}`}
             variant={selectedTag === tag ? "default" : "secondary"}
             className="cursor-pointer"
             onClick={() => handleTagClick(tag)}
@@ -118,8 +123,11 @@ export default function Feed() {
         ))}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {opportunities.map((opportunity) => (
-          <Card key={opportunity.id} className="flex flex-col brand-hover">
+        {opportunities.map((opportunity, index) => (
+          <Card 
+            key={`${opportunity.id}-${index}`} 
+            className="flex flex-col brand-hover"
+          >
             <CardContent className="flex-grow p-6">
               <h3 className="text-xl font-semibold mb-2">{opportunity.title}</h3>
               <div className="flex flex-wrap gap-2 mb-4">

@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, limit } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { useAuth } from '../contexts/AuthContext'
 
 const SYSTEM_PROMPT = `You are a social enterprise creator assistant with expertise in permaculture, humanity-centered design, and heart-based leadership. 
 
@@ -26,6 +29,14 @@ interface AIChatProps {
   onTabChange?: (tab: string) => void;
 }
 
+interface ChatMessage {
+  role: 'user' | 'ai';
+  content: string;
+  timestamp: any;
+  userId: string;
+  opportunityId?: string;
+}
+
 export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,12 +47,53 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
     }
   ])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [opportunityId, setOpportunityId] = useState<string | null>(null)
+  const { user } = useAuth()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
   useEffect(scrollToBottom, [messages])
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchChatHistory = async () => {
+      if (!user) return;
+      
+      try {
+        const chatRef = collection(db, 'chats');
+        const q = query(
+          chatRef,
+          where('userId', '==', user.uid),
+          orderBy('timestamp', 'desc'),
+          limit(50)
+        );
+        
+        const snapshot = await getDocs(q);
+        const history = snapshot.docs
+          .map(doc => doc.data() as ChatMessage)
+          .reverse();
+        setMessages(history);
+      } catch (error) {
+        console.error('Error fetching chat history:', error);
+      }
+    };
+    
+    fetchChatHistory();
+  }, [user]);
+
+  const saveMessage = async (message: ChatMessage) => {
+    if (!user) return;
+    
+    await addDoc(collection(db, 'chats'), {
+      ...message,
+      timestamp: serverTimestamp(),
+      userId: user.uid,
+      opportunityId
+    });
+  };
 
   const generateOpportunityCanvas = async (userInput: string) => {
     try {
@@ -72,7 +124,17 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
     if (!input.trim() || loading) return
 
     setLoading(true)
-    setMessages(prev => [...prev, { role: 'user', content: input }])
+    const userMessage = { role: 'user', content: input }
+    setMessages(prev => [...prev, userMessage])
+
+    // Save user message
+    await saveMessage({
+      role: 'user',
+      content: input,
+      timestamp: serverTimestamp(),
+      userId: user?.uid || '',
+      opportunityId
+    })
 
     try {
       const opportunity = await generateOpportunityCanvas(input)
@@ -83,11 +145,21 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       
       onSuggestion(JSON.stringify(opportunity))
 
-      setMessages(prev => [...prev, { 
+      const aiMessage = { 
         role: 'ai', 
         content: `I've analyzed your vision through the lens of permaculture, humanity-centered design, and heart-based leadership principles. I've created an opportunity canvas that reflects these values and outlines regenerative next steps. Would you like to review and refine the canvas?`,
         showCanvasButton: true
-      }])
+      }
+      setMessages(prev => [...prev, aiMessage])
+
+      // Save AI message
+      await saveMessage({
+        role: 'ai',
+        content: aiMessage.content,
+        timestamp: serverTimestamp(),
+        userId: user?.uid || '',
+        opportunityId
+      })
     } catch (error: any) {
       const errorMessage = error.message === 'Service temporarily unavailable. Please try again later.'
         ? 'Our AI service is temporarily unavailable. Please try again in a few minutes.'

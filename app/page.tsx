@@ -1,10 +1,33 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Lightbulb, Users, Rocket, ArrowRight } from 'lucide-react'
 import Feed from './components/Feed'
+import { useAuth } from './contexts/AuthContext'
 
 export default function Home() {
+  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Wait for auth to initialize
+    setIsLoading(false)
+  }, [user])
+
+  if (isLoading) {
+    return null // Or a loading spinner
+  }
+
+  if (user) {
+    return (
+      <div className="container py-16">
+        <Feed />
+      </div>
+    )
+  }
+
   return (
     <div>
       <section className="relative overflow-hidden py-16 sm:py-24 lg:py-32">

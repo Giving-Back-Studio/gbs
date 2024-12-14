@@ -22,15 +22,25 @@ Help users develop their ideas into opportunities that:
 Analyze the user's input and generate a structured opportunity canvas with the following format:
 {
   "title": "Concise, inspiring title",
-  "nextSteps": [
-    "Three practical, actionable steps that honor permaculture principles"
-  ],
-  "connections": [
-    "Three key roles or partners needed, emphasizing community and collaboration"
-  ],
+  "description": "A brief overview of the opportunity",
+  "sections": {
+    "nextSteps": {
+      "heading": "Next Steps",
+      "items": [
+        "Three practical, actionable steps that honor permaculture principles"
+      ]
+    },
+    "connections": {
+      "heading": "Key Connections Needed",
+      "items": [
+        "Three key roles or partners needed, emphasizing community and collaboration"
+      ]
+    }
+  },
   "tags": [
     "Three relevant tags for discovery"
-  ]
+  ],
+  "status": "draft"
 }`
 
 export async function POST(req: Request) {
@@ -69,7 +79,11 @@ export async function POST(req: Request) {
     try {
       // Parse and validate the response
       const opportunity = JSON.parse(response)
-      if (!opportunity.title || !opportunity.nextSteps || !opportunity.connections || !opportunity.tags) {
+      if (!opportunity.title || 
+          !opportunity.description || 
+          !opportunity.sections?.nextSteps?.items || 
+          !opportunity.sections?.connections?.items || 
+          !opportunity.tags) {
         throw new Error('Invalid response format from OpenAI')
       }
 
