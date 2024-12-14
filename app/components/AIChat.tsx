@@ -30,7 +30,7 @@ interface AIChatProps {
 }
 
 interface ChatMessage {
-  role: 'user' | 'ai';
+  role: 'user' | 'assistant' | 'ai';
   content: string;
   timestamp: any;
   userId: string;
@@ -40,9 +40,9 @@ interface ChatMessage {
 export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'ai', content: string, showCanvasButton?: boolean }>>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     { 
-      role: 'ai', 
+      role: 'assistant', 
       content: "Hi! I am a social enterprise creator assistant grounded in permaculture, humanity-centered design, and heart-based leadership principles. What opportunity do you need support to realize? Describe your vision and what support you're inviting in." 
     }
   ])
@@ -124,7 +124,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
     if (!input.trim() || loading) return
 
     setLoading(true)
-    const userMessage = { role: 'user', content: input }
+    const userMessage: ChatMessage = { role: 'user', content: input }
     setMessages(prev => [...prev, userMessage])
 
     // Save user message
@@ -145,8 +145,8 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       
       onSuggestion(JSON.stringify(opportunity))
 
-      const aiMessage = { 
-        role: 'ai', 
+      const aiMessage: ChatMessage = { 
+        role: 'assistant', 
         content: `I've analyzed your vision through the lens of permaculture, humanity-centered design, and heart-based leadership principles. I've created an opportunity canvas that reflects these values and outlines regenerative next steps. Would you like to review and refine the canvas?`,
         showCanvasButton: true
       }
