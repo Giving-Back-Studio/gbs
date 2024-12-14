@@ -43,7 +43,10 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { 
       role: 'assistant', 
-      content: "Hi! I am a social enterprise creator assistant grounded in permaculture, humanity-centered design, and heart-based leadership principles. What opportunity do you need support to realize? Describe your vision and what support you're inviting in." 
+      content: "Hi! I am a social enterprise creator assistant grounded in permaculture, humanity-centered design, and heart-based leadership principles. What opportunity do you need support to realize? Describe your vision and what support you're inviting in.",
+      timestamp: serverTimestamp(),
+      userId: 'system',
+      opportunityId: null
     }
   ])
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -124,7 +127,13 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
     if (!input.trim() || loading) return
 
     setLoading(true)
-    const userMessage: ChatMessage = { role: 'user', content: input }
+    const userMessage: ChatMessage = { 
+      role: 'user', 
+      content: input,
+      timestamp: serverTimestamp(),
+      userId: user?.uid || 'anonymous',
+      opportunityId
+    }
     setMessages(prev => [...prev, userMessage])
 
     // Save user message
@@ -148,6 +157,9 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       const aiMessage: ChatMessage = { 
         role: 'assistant', 
         content: `I've analyzed your vision through the lens of permaculture, humanity-centered design, and heart-based leadership principles. I've created an opportunity canvas that reflects these values and outlines regenerative next steps. Would you like to review and refine the canvas?`,
+        timestamp: serverTimestamp(),
+        userId: 'system',
+        opportunityId,
         showCanvasButton: true
       }
       setMessages(prev => [...prev, aiMessage])
@@ -167,7 +179,10 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       
       setMessages(prev => [...prev, { 
         role: 'ai', 
-        content: errorMessage
+        content: errorMessage,
+        timestamp: serverTimestamp(),
+        userId: 'system',
+        opportunityId
       }])
     } finally {
       setLoading(false)
