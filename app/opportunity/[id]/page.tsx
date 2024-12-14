@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, addDoc, collection } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,8 @@ export default function OpportunityPage() {
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null)
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     const fetchOpportunity = async () => {
@@ -52,6 +54,32 @@ export default function OpportunityPage() {
 
     fetchOpportunity()
   }, [id])
+
+  const handleSendMessage = async () => {
+    if (!user || !message.trim() || !opportunity) return
+    
+    setSending(true)
+    try {
+      // Add the response to a 'responses' collection
+      await addDoc(collection(db, 'responses'), {
+        opportunityId: opportunity.id,
+        message: message.trim(),
+        responderId: user.uid,
+        responderEmail: user.email,
+        createdAt: new Date(),
+        opportunityCreatorId: opportunity.createdBy,
+        opportunityTitle: opportunity.title
+      })
+
+      setMessage('')
+      alert('Your message has been sent!')
+    } catch (error) {
+      console.error('Error sending message:', error)
+      alert('Failed to send message. Please try again.')
+    } finally {
+      setSending(false)
+    }
+  }
 
   if (loading) {
     return <div>Loading...</div>
@@ -88,9 +116,15 @@ export default function OpportunityPage() {
               className="w-full p-4 rounded-lg border"
               rows={4}
               placeholder="Share your thoughts or express interest..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
             />
-            <Button className="brand-gradient-bg text-white">
-              Send Message
+            <Button 
+              className="brand-gradient-bg text-white"
+              onClick={handleSendMessage}
+              disabled={sending}
+            >
+              {sending ? 'Sending...' : 'Send Message'}
             </Button>
           </div>
         ) : (

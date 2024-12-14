@@ -34,29 +34,18 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
   const editor = useEditor({
     extensions: [StarterKit],
     content: initialContent || `
-      <h1>Title</h1>
-      <p>Enter your opportunity title here...</p>
-      <h2>Next Steps</h2>
-      <ul>
-        <li>Step 1</li>
-        <li>Step 2</li>
-        <li>Step 3</li>
-      </ul>
-      <h2>Who I'm Looking to Connect With</h2>
-      <ul>
-        <li>Person or role 1</li>
-        <li>Person or role 2</li>
-        <li>Person or role 3</li>
+      <h2 class="text-2xl font-bold mb-4">Who I'm Looking to Collaborate With</h2>
+      <p class="text-gray-500 mb-6">Share the roles and perspectives needed to bring this regenerative opportunity to life...</p>
+      
+      <ul class="list-disc pl-6 mb-6">
+        <li>What skills and expertise would strengthen this initiative?</li>
+        <li>Which community members could contribute unique perspectives?</li>
+        <li>What partners could help scale this regenerative impact?</li>
       </ul>
     `,
     editorProps: {
       attributes: {
         class: 'prose max-w-none focus:outline-none'
-      }
-    },
-    onCreate: ({ editor }) => {
-      if (initialContent) {
-        editor.commands.setContent(formatInitialContent(initialContent))
       }
     }
   })
@@ -65,31 +54,17 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
     if (!content) return '';
     
     return `
-      <h1 class="text-2xl font-bold mb-4">${content.title}</h1>
-      
+      <h2 class="text-2xl font-bold mb-4">Who I'm Looking to Collaborate With</h2>
       <div class="mb-6">
-        <p class="text-lg">${content.description}</p>
+        <p class="text-lg leading-relaxed">${content.description}</p>
       </div>
       
       <div class="mb-6">
-        <h2 class="text-xl font-semibold mb-3">${content.sections.nextSteps.heading}</h2>
-        <ul class="space-y-2">
-          ${content.sections.nextSteps.items.map(step => 
-            `<li class="flex items-start">
-              <span class="mr-2">•</span>
-              <span>${step}</span>
-            </li>`
-          ).join('')}
-        </ul>
-      </div>
-      
-      <div class="mb-6">
-        <h2 class="text-xl font-semibold mb-3">${content.sections.connections.heading}</h2>
         <ul class="space-y-2">
           ${content.sections.connections.items.map(connection => 
             `<li class="flex items-start">
               <span class="mr-2">•</span>
-              <span>${connection}</span>
+              <span class="text-lg">${connection}</span>
             </li>`
           ).join('')}
         </ul>
@@ -100,31 +75,17 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
   useEffect(() => {
     if (initialContent && editor) {
       const content = `
-        <h1 class="text-2xl font-bold mb-4">${initialContent.title}</h1>
-        
+        <h2 class="text-2xl font-bold mb-4">Who I'm Looking to Collaborate With</h2>
         <div class="mb-6">
-          <p class="text-lg">${initialContent.description}</p>
+          <p class="text-lg leading-relaxed">${initialContent.description}</p>
         </div>
         
         <div class="mb-6">
-          <h2 class="text-xl font-semibold mb-3">${initialContent.sections.nextSteps.heading}</h2>
-          <ul class="space-y-2">
-            ${initialContent.sections.nextSteps.items.map(step => 
-              `<li class="flex items-start">
-                <span class="mr-2">•</span>
-                <span>${step}</span>
-              </li>`
-            ).join('')}
-          </ul>
-        </div>
-        
-        <div class="mb-6">
-          <h2 class="text-xl font-semibold mb-3">${initialContent.sections.connections.heading}</h2>
           <ul class="space-y-2">
             ${initialContent.sections.connections.items.map(connection => 
               `<li class="flex items-start">
                 <span class="mr-2">•</span>
-                <span>${connection}</span>
+                <span class="text-lg">${connection}</span>
               </li>`
             ).join('')}
           </ul>
@@ -204,6 +165,32 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
     }
   }
 
+  const handleUnpublish = async () => {
+    if (!user || !title.trim()) {
+      alert('Please provide a title for your opportunity.')
+      return
+    }
+    
+    try {
+      const opportunityData = {
+        title: title.trim(),
+        content: editor?.getHTML(),
+        description: editor?.getText().slice(0, 200) + '...', // First 200 chars as description
+        tags,
+        status: 'draft',
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        engagementCount: 0,
+        likeCount: 0,
+      }
+
+      const docRef = await addDoc(collection(db, 'opportunities'), opportunityData)
+      router.push(`/opportunity/${docRef.id}`)
+    } catch (error) {
+      console.error('Error unpublishing opportunity:', error)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Input
@@ -233,8 +220,32 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
           onKeyDown={handleAddTag}
         />
       </div>
-      <Button className="w-full" onClick={handleSave}>Save Opportunity</Button>
-      <Button className="w-full" onClick={handlePublish}>Publish Opportunity</Button>
+      <div className="flex gap-4">
+        {initialContent?.status === 'published' ? (
+          <>
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={handleUnpublish}
+            >
+              Unpublish
+            </Button>
+            <Button 
+              className="flex-1" 
+              onClick={() => router.push(`/opportunity/${initialContent.id}`)}
+            >
+              View Published Opportunity
+            </Button>
+          </>
+        ) : (
+          <Button 
+            className="w-full" 
+            onClick={handlePublish}
+          >
+            Publish Opportunity
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

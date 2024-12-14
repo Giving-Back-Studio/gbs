@@ -27,6 +27,7 @@ Format responses to include practical next steps and needed connections while ma
 interface AIChatProps {
   onSuggestion: (suggestion: string) => void;
   onTabChange?: (tab: string) => void;
+  threadId?: string;
 }
 
 interface ChatMessage {
@@ -34,11 +35,11 @@ interface ChatMessage {
   content: string;
   timestamp: any;
   userId: string;
-  opportunityId?: string;
+  threadId?: string;
   showCanvasButton?: boolean;
 }
 
-export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
+export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -46,11 +47,11 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       role: 'assistant', 
       content: "Hi! I am a social enterprise creator assistant grounded in permaculture, humanity-centered design, and heart-based leadership principles. What opportunity do you need support to realize? Describe your vision and what support you're inviting in.",
       timestamp: serverTimestamp(),
-      userId: 'system'
+      userId: 'system',
+      threadId
     }
   ])
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [opportunityId, setOpportunityId] = useState<string | undefined>(undefined)
   const { user } = useAuth()
 
   const scrollToBottom = () => {
@@ -60,16 +61,15 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
   useEffect(scrollToBottom, [messages])
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !threadId) return;
     
     const fetchChatHistory = async () => {
-      if (!user) return;
-      
       try {
         const chatRef = collection(db, 'chats');
         const q = query(
           chatRef,
           where('userId', '==', user.uid),
+          where('threadId', '==', threadId),
           orderBy('timestamp', 'desc'),
           limit(50)
         );
@@ -78,24 +78,29 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
         const history = snapshot.docs
           .map(doc => doc.data() as ChatMessage)
           .reverse();
-        setMessages(history);
+        
+        if (history.length > 0) {
+          setMessages(history);
+        }
       } catch (error) {
         console.error('Error fetching chat history:', error);
       }
     };
     
     fetchChatHistory();
-  }, [user]);
+  }, [user, threadId]);
 
   const saveMessage = async (message: ChatMessage) => {
-    if (!user) return;
+    if (!user || !threadId) return;
     
-    await addDoc(collection(db, 'chats'), {
+    const messageData = {
       ...message,
       timestamp: serverTimestamp(),
       userId: user.uid,
-      opportunityId
-    });
+      threadId
+    };
+
+    await addDoc(collection(db, 'chats'), messageData);
   };
 
   const generateOpportunityCanvas = async (userInput: string) => {
@@ -124,7 +129,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || loading) return
+    if (!input.trim() || loading || !threadId) return
 
     setLoading(true)
     const userMessage: ChatMessage = { 
@@ -132,18 +137,11 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       content: input,
       timestamp: serverTimestamp(),
       userId: user?.uid || 'anonymous',
-      ...(opportunityId && { opportunityId })
+      threadId
     }
     setMessages(prev => [...prev, userMessage])
 
-    // Save user message
-    await saveMessage({
-      role: 'user',
-      content: input,
-      timestamp: serverTimestamp(),
-      userId: user?.uid || '',
-      ...(opportunityId && { opportunityId })
-    })
+    await saveMessage(userMessage)
 
     try {
       const opportunity = await generateOpportunityCanvas(input)
@@ -159,31 +157,27 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
         content: `I've analyzed your vision through the lens of permaculture, humanity-centered design, and heart-based leadership principles. I've created an opportunity canvas that reflects these values and outlines regenerative next steps. Would you like to review and refine the canvas?`,
         timestamp: serverTimestamp(),
         userId: 'system',
-        ...(opportunityId && { opportunityId }),
+        threadId,
         showCanvasButton: true
       }
       setMessages(prev => [...prev, aiMessage])
 
-      // Save AI message
-      await saveMessage({
-        role: 'ai',
-        content: aiMessage.content,
-        timestamp: serverTimestamp(),
-        userId: user?.uid || '',
-        ...(opportunityId && { opportunityId })
-      })
+      await saveMessage(aiMessage)
     } catch (error: any) {
       const errorMessage = error.message === 'Service temporarily unavailable. Please try again later.'
         ? 'Our AI service is temporarily unavailable. Please try again in a few minutes.'
         : 'I apologize, but I encountered an error while processing your request. Please try again.'
       
-      setMessages(prev => [...prev, { 
+      const errorAiMessage: ChatMessage = {
         role: 'ai', 
         content: errorMessage,
         timestamp: serverTimestamp(),
         userId: 'system',
-        ...(opportunityId && { opportunityId })
-      }])
+        threadId
+      }
+      setMessages(prev => [...prev, errorAiMessage])
+      
+      await saveMessage(errorAiMessage)
     } finally {
       setLoading(false)
       setInput('')
