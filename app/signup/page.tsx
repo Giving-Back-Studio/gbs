@@ -11,7 +11,7 @@ import Link from 'next/link'
 export default function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string | JSX.Element>('')
   const { signup } = useAuth()
   const router = useRouter()
 
