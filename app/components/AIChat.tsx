@@ -49,7 +49,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
     }
   ])
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [opportunityId, setOpportunityId] = useState<string | null>(null)
+  const [opportunityId, setOpportunityId] = useState<string | undefined>(undefined)
   const { user } = useAuth()
 
   const scrollToBottom = () => {
@@ -131,7 +131,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       content: input,
       timestamp: serverTimestamp(),
       userId: user?.uid || 'anonymous',
-      opportunityId
+      ...(opportunityId && { opportunityId })
     }
     setMessages(prev => [...prev, userMessage])
 
@@ -141,7 +141,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       content: input,
       timestamp: serverTimestamp(),
       userId: user?.uid || '',
-      opportunityId
+      ...(opportunityId && { opportunityId })
     })
 
     try {
@@ -158,7 +158,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
         content: `I've analyzed your vision through the lens of permaculture, humanity-centered design, and heart-based leadership principles. I've created an opportunity canvas that reflects these values and outlines regenerative next steps. Would you like to review and refine the canvas?`,
         timestamp: serverTimestamp(),
         userId: 'system',
-        opportunityId,
+        ...(opportunityId && { opportunityId }),
         showCanvasButton: true
       }
       setMessages(prev => [...prev, aiMessage])
@@ -169,7 +169,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
         content: aiMessage.content,
         timestamp: serverTimestamp(),
         userId: user?.uid || '',
-        opportunityId
+        ...(opportunityId && { opportunityId })
       })
     } catch (error: any) {
       const errorMessage = error.message === 'Service temporarily unavailable. Please try again later.'
@@ -181,7 +181,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
         content: errorMessage,
         timestamp: serverTimestamp(),
         userId: 'system',
-        opportunityId
+        ...(opportunityId && { opportunityId })
       }])
     } finally {
       setLoading(false)
