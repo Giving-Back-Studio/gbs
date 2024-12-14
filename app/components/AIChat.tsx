@@ -45,8 +45,7 @@ export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
       role: 'assistant', 
       content: "Hi! I am a social enterprise creator assistant grounded in permaculture, humanity-centered design, and heart-based leadership principles. What opportunity do you need support to realize? Describe your vision and what support you're inviting in.",
       timestamp: serverTimestamp(),
-      userId: 'system',
-      opportunityId: null
+      userId: 'system'
     }
   ])
   const messagesEndRef = useRef<HTMLDivElement>(null)
