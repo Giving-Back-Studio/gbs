@@ -72,7 +72,7 @@ export default function Chat() {
       </div>
       {showCanvas && (
         <div className="w-full md:w-[600px] border-t md:border-l md:border-t-0 p-4 md:p-6">
-          <OpportunityCanvas initialContent="" />
+          <OpportunityCanvas initialContent={null} />
         </div>
       )}
     </div>
