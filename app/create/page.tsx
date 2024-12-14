@@ -14,17 +14,36 @@ export default function Create() {
   const [activeTab, setActiveTab] = useState('chat')
   const [canvasContent, setCanvasContent] = useState<{
     title: string;
-    nextSteps: string[];
-    connections: string[];
+    description: string;
+    sections: {
+      nextSteps: { heading: string; items: string[] };
+      connections: { heading: string; items: string[] };
+    };
     tags: string[];
+    status: 'draft' | 'published';
   } | null>(null)
   const { user } = useAuth()
   const router = useRouter()
 
   const handleSuggestion = (suggestion: string) => {
     try {
-      const opportunityData = JSON.parse(suggestion)
-      setCanvasContent(opportunityData)
+      const data = JSON.parse(suggestion)
+      setCanvasContent({
+        title: data.title,
+        description: data.description || '',
+        sections: {
+          nextSteps: {
+            heading: 'Next Steps',
+            items: data.nextSteps || []
+          },
+          connections: {
+            heading: 'Who I\'m Looking to Connect With',
+            items: data.connections || []
+          }
+        },
+        tags: data.tags || [],
+        status: 'draft'
+      })
     } catch (error) {
       console.error('Error parsing suggestion:', error)
     }
