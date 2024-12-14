@@ -12,11 +12,22 @@ const OpportunityCanvas = dynamic(() => import('../components/OpportunityCanvas'
 
 export default function Create() {
   const [activeTab, setActiveTab] = useState('chat')
+  const [canvasContent, setCanvasContent] = useState<{
+    title: string;
+    nextSteps: string[];
+    connections: string[];
+    tags: string[];
+  } | null>(null)
   const { user } = useAuth()
   const router = useRouter()
 
   const handleSuggestion = (suggestion: string) => {
-    console.log('Suggestion:', suggestion)
+    try {
+      const opportunityData = JSON.parse(suggestion)
+      setCanvasContent(opportunityData)
+    } catch (error) {
+      console.error('Error parsing suggestion:', error)
+    }
   }
 
   useEffect(() => {
@@ -40,10 +51,13 @@ export default function Create() {
           </TabsList>
           <div className="flex-grow overflow-hidden p-4">
             <TabsContent value="chat" className="h-full">
-              <AIChat onSuggestion={handleSuggestion} />
+              <AIChat 
+                onSuggestion={handleSuggestion} 
+                onTabChange={setActiveTab}
+              />
             </TabsContent>
             <TabsContent value="canvas" className="h-full">
-              <OpportunityCanvas />
+              <OpportunityCanvas initialContent={canvasContent} />
             </TabsContent>
           </div>
         </Tabs>

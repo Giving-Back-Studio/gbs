@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Button } from "@/components/ui/button"
@@ -12,10 +12,15 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { useRouter } from 'next/navigation'
 
 interface OpportunityCanvasProps {
-  initialContent?: string;
+  initialContent?: {
+    title: string;
+    nextSteps: string[];
+    connections: string[];
+    tags: string[];
+  } | null;
 }
 
-export default function OpportunityCanvas({ initialContent = '' }: OpportunityCanvasProps) {
+export default function OpportunityCanvas({ initialContent }: OpportunityCanvasProps) {
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const { user } = useAuth()
@@ -40,6 +45,24 @@ export default function OpportunityCanvas({ initialContent = '' }: OpportunityCa
       </ul>
     `,
   })
+
+  useEffect(() => {
+    if (initialContent && editor) {
+      const content = `
+        <h1>${initialContent.title}</h1>
+        <h2>Next Steps</h2>
+        <ul>
+          ${initialContent.nextSteps.map(step => `<li>${step}</li>`).join('')}
+        </ul>
+        <h2>Who I'm Looking to Connect With</h2>
+        <ul>
+          ${initialContent.connections.map(connection => `<li>${connection}</li>`).join('')}
+        </ul>
+      `
+      editor.commands.setContent(content)
+      setTags(initialContent.tags)
+    }
+  }, [initialContent, editor])
 
   const handleAddTag = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagInput.trim()) {

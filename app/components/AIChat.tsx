@@ -1,18 +1,39 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send } from 'lucide-react'
+import { Send, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
+const SYSTEM_PROMPT = `You are a social enterprise creator assistant with expertise in permaculture, humanity-centered design, and heart-based leadership. 
+
+Key principles you embody:
+- Permaculture: Earth care, people care, fair share
+- Humanity-centered design: Empathy, co-creation, holistic solutions
+- Heart-based leadership: Authenticity, compassion, collective wisdom
+
+Help users develop their ideas into opportunities that:
+1. Create regenerative solutions
+2. Foster community wellbeing
+3. Enable sustainable prosperity
+4. Honor indigenous wisdom
+5. Build resilient systems
+
+Format responses to include practical next steps and needed connections while maintaining focus on these principles.`
+
 interface AIChatProps {
   onSuggestion: (suggestion: string) => void;
+  onTabChange?: (tab: string) => void;
 }
 
-export default function AIChat({ onSuggestion }: AIChatProps) {
+export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'ai', content: string }>>([
-    { role: 'ai', content: "Hi! I am a social enterprise creator assistant. I help you turn your ideas into better realities. What opportunity do you need support to realize? Describe in one sentence what your vision is and what support you are inviting in." }
+  const [loading, setLoading] = useState(false)
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'ai', content: string, showCanvasButton?: boolean }>>([
+    { 
+      role: 'ai', 
+      content: "Hi! I am a social enterprise creator assistant grounded in permaculture, humanity-centered design, and heart-based leadership principles. What opportunity do you need support to realize? Describe your vision and what support you're inviting in." 
+    }
   ])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -22,19 +43,64 @@ export default function AIChat({ onSuggestion }: AIChatProps) {
 
   useEffect(scrollToBottom, [messages])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim()) return
+  const generateOpportunityCanvas = async (userInput: string) => {
+    try {
+      const response = await fetch('/api/generate-opportunity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userInput,
+          messages: messages.map(m => ({
+            role: m.role === 'ai' ? 'assistant' : 'user',
+            content: m.content
+          }))
+        })
+      })
 
+      if (!response.ok) throw new Error('Failed to generate opportunity')
+      
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error generating opportunity:', error)
+      throw error
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || loading) return
+
+    setLoading(true)
     setMessages(prev => [...prev, { role: 'user', content: input }])
 
-    setTimeout(() => {
-      const aiResponse = `Thank you for sharing your vision. Let's work on refining your idea and creating an opportunity canvas. Can you provide more details about your specific goals and the type of support you're looking for?`
-      setMessages(prev => [...prev, { role: 'ai', content: aiResponse }])
-      onSuggestion(input)
-    }, 1000)
+    try {
+      const opportunity = await generateOpportunityCanvas(input)
+      
+      if ('error' in opportunity) {
+        throw new Error(opportunity.error)
+      }
+      
+      onSuggestion(JSON.stringify(opportunity))
 
-    setInput('')
+      setMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: `I've analyzed your vision through the lens of permaculture, humanity-centered design, and heart-based leadership principles. I've created an opportunity canvas that reflects these values and outlines regenerative next steps. Would you like to review and refine the canvas?`,
+        showCanvasButton: true
+      }])
+    } catch (error: any) {
+      const errorMessage = error.message === 'Service temporarily unavailable. Please try again later.'
+        ? 'Our AI service is temporarily unavailable. Please try again in a few minutes.'
+        : 'I apologize, but I encountered an error while processing your request. Please try again.'
+      
+      setMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: errorMessage
+      }])
+    } finally {
+      setLoading(false)
+      setInput('')
+    }
   }
 
   return (
@@ -42,10 +108,23 @@ export default function AIChat({ onSuggestion }: AIChatProps) {
       <div className="flex-grow overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
           <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
-              message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-            }`}>
-              {message.content}
+            <div className="flex flex-col gap-2">
+              <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+              }`}>
+                {message.content}
+              </div>
+              {message.role === 'ai' && message.showCanvasButton && (
+                <Button 
+                  onClick={() => onTabChange?.('canvas')}
+                  className="flex items-center gap-2"
+                  variant="outline"
+                  size="sm"
+                >
+                  View Opportunity Canvas
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -59,9 +138,15 @@ export default function AIChat({ onSuggestion }: AIChatProps) {
             className="flex-grow resize-none"
             placeholder="Type your message..."
             rows={2}
+            disabled={loading}
           />
-          <Button type="submit" size="icon" className="h-full aspect-square">
-            <Send size={20} />
+          <Button 
+            type="submit" 
+            size="icon" 
+            className="h-full aspect-square"
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
           </Button>
         </div>
       </form>
