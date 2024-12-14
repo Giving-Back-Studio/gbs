@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 
 interface OpportunityCanvasProps {
   initialContent?: {
+    id?: string;
     title: string;
     description: string;
     sections: {
@@ -221,7 +222,7 @@ export default function OpportunityCanvas({ initialContent }: OpportunityCanvasP
         />
       </div>
       <div className="flex gap-4">
-        {initialContent?.status === 'published' ? (
+        {initialContent?.status === 'published' && initialContent.id ? (
           <>
             <Button 
               variant="outline" 
