@@ -17,12 +17,38 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     try {
       await login(email, password)
       router.push('/create')
-    } catch (error) {
-      setError('Failed to log in. Please check your credentials.')
-      console.error('Login failed:', error)
+    } catch (error: any) {
+      const errorCode = error.code
+      switch (errorCode) {
+        case 'auth/invalid-credential':
+          setError('Invalid email or password. Please check your credentials and try again.')
+          break
+        case 'auth/invalid-email':
+          setError('Please enter a valid email address.')
+          break
+        case 'auth/user-disabled':
+          setError('This account has been disabled. Please contact support.')
+          break
+        case 'auth/user-not-found':
+          setError('No account found with this email. Please sign up instead.')
+          break
+        case 'auth/wrong-password':
+          setError('Incorrect password. Please try again.')
+          break
+        case 'auth/too-many-requests':
+          setError('Access temporarily disabled due to many failed attempts. Please try again later or reset your password.')
+          break
+        case 'auth/network-request-failed':
+          setError('Unable to connect. Please check your internet connection and try again.')
+          break
+        default:
+          setError(`Login failed: ${error.message || 'Please try again.'}`)
+          console.error('Login failed:', error)
+      }
     }
   }
 

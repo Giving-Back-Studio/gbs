@@ -17,12 +17,57 @@ export default function Signup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('') // Clear any previous errors
+
+    // Enhanced password validation
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.')
+      return
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError('Password must contain at least one uppercase letter.')
+      return
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError('Password must contain at least one number.')
+      return
+    }
+
     try {
       await signup(email, password)
       router.push('/create')
-    } catch (error) {
-      setError('Failed to create an account. Please try again.')
-      console.error('Signup failed:', error)
+    } catch (error: any) {
+      const errorCode = error.code
+      switch (errorCode) {
+        case 'auth/email-already-in-use':
+          setError(
+            <span>
+              This email is already registered. Please{' '}
+              <Link href="/login" className="text-blue-600 hover:underline">
+                log in
+              </Link>{' '}
+              instead.
+            </span>
+          )
+          break
+        case 'auth/invalid-email':
+          setError('Please enter a valid email address.')
+          break
+        case 'auth/operation-not-allowed':
+          setError('Sign up is currently disabled. Please contact support.')
+          break
+        case 'auth/weak-password':
+          setError('Please choose a stronger password. It should be at least 6 characters long with numbers and uppercase letters.')
+          break
+        case 'auth/network-request-failed':
+          setError('Unable to connect. Please check your internet connection and try again.')
+          break
+        default:
+          setError(`Sign up failed: ${error.message || 'Please try again.'}`)
+          console.error('Signup failed:', error)
+      }
     }
   }
 
