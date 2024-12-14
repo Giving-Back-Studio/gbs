@@ -35,6 +35,7 @@ interface ChatMessage {
   timestamp: any;
   userId: string;
   opportunityId?: string;
+  showCanvasButton?: boolean;
 }
 
 export default function AIChat({ onSuggestion, onTabChange }: AIChatProps) {
