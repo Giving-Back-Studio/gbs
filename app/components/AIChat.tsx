@@ -53,7 +53,8 @@ interface OpportunityResponse {
   roles?: string[];
   nextSteps?: string[];
   connections?: string[];
-  error?: string; // Add error property
+  tags?: string[];
+  error?: string;
 }
 
 export default function AIChat({ onSuggestion, onTabChange, threadId, onFirstMessage }: AIChatProps) {
