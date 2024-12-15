@@ -41,6 +41,11 @@ interface ChatMessage {
   showCanvasButton?: boolean;
 }
 
+// Add this interface to define the error response type
+interface OpportunityError {
+  error: string;
+}
+
 export default function AIChat({ onSuggestion, onTabChange, threadId, onFirstMessage }: AIChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -133,6 +138,12 @@ export default function AIChat({ onSuggestion, onTabChange, threadId, onFirstMes
       if (!response.ok) throw new Error('Failed to generate opportunity')
       
       const data = await response.json()
+      
+      // Type guard to check if response is an error
+      if ('error' in data) {
+        throw new Error((data as OpportunityError).error)
+      }
+      
       const formattedData = {
         title: data.title || "New Opportunity",
         description: data.description || "",
