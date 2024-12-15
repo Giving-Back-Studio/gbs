@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, limit } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '../contexts/AuthContext'
+import { cn } from '@/lib/utils'
 
 const SYSTEM_PROMPT = `You are a social enterprise creator assistant with expertise in permaculture, humanity-centered design, and heart-based leadership. 
 
@@ -28,6 +29,7 @@ interface AIChatProps {
   onSuggestion: (suggestion: string) => void;
   onTabChange?: (tab: string) => void;
   threadId?: string;
+  onFirstMessage?: (threadId: string, message: string) => void;
 }
 
 interface ChatMessage {
@@ -39,7 +41,7 @@ interface ChatMessage {
   showCanvasButton?: boolean;
 }
 
-export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatProps) {
+export default function AIChat({ onSuggestion, onTabChange, threadId, onFirstMessage }: AIChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -54,11 +56,12 @@ export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatPr
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { user } = useAuth()
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  useEffect(scrollToBottom, [messages])
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage && lastMessage.timestamp === serverTimestamp()) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages])
 
   useEffect(() => {
     if (!user || !threadId) return;
@@ -90,6 +93,16 @@ export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatPr
     fetchChatHistory();
   }, [user, threadId]);
 
+  useEffect(() => {
+    setMessages([{ 
+      role: 'assistant', 
+      content: "Hi! I am a social enterprise creator assistant grounded in permaculture, humanity-centered design, and heart-based leadership principles. What opportunity do you need support to realize? Describe your vision and what support you're inviting in.",
+      timestamp: null,
+      userId: 'system',
+      threadId
+    }])
+  }, [threadId])
+
   const saveMessage = async (message: ChatMessage) => {
     if (!user || !threadId) return;
     
@@ -120,7 +133,30 @@ export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatPr
       if (!response.ok) throw new Error('Failed to generate opportunity')
       
       const data = await response.json()
-      return data
+      const formattedData = {
+        title: data.title || "New Opportunity",
+        description: data.description || "",
+        sections: {
+          roles: {
+            heading: "Key Roles & Responsibilities",
+            items: data.roles || []
+          },
+          nextSteps: {
+            heading: "Next Steps",
+            items: data.nextSteps || []
+          },
+          connections: {
+            heading: "Required Connections",
+            items: data.connections || []
+          }
+        },
+        tags: data.tags || [],
+        status: 'draft'
+      }
+
+      onSuggestion(JSON.stringify(formattedData))
+      
+      return formattedData
     } catch (error) {
       console.error('Error generating opportunity:', error)
       throw error
@@ -139,30 +175,38 @@ export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatPr
       userId: user?.uid || 'anonymous',
       threadId
     }
-    setMessages(prev => [...prev, userMessage])
-
-    await saveMessage(userMessage)
+    
+    if (messages.length === 1 && onFirstMessage) {
+      await onFirstMessage(threadId, input)
+    }
 
     try {
+      await saveMessage(userMessage)
+      setMessages(prev => [...prev, userMessage])
+
       const opportunity = await generateOpportunityCanvas(input)
       
       if ('error' in opportunity) {
         throw new Error(opportunity.error)
       }
       
-      onSuggestion(JSON.stringify(opportunity))
-
       const aiMessage: ChatMessage = { 
         role: 'assistant', 
-        content: `I've analyzed your vision through the lens of permaculture, humanity-centered design, and heart-based leadership principles. I've created an opportunity canvas that reflects these values and outlines regenerative next steps. Would you like to review and refine the canvas?`,
+        content: `I've created an opportunity canvas for "${opportunity.title}". The canvas includes:
+- A detailed description of the opportunity
+- Key next steps for implementation
+- Required connections and partnerships
+- Essential roles and responsibilities
+
+Would you like to review and refine the canvas?`,
         timestamp: serverTimestamp(),
         userId: 'system',
         threadId,
         showCanvasButton: true
       }
-      setMessages(prev => [...prev, aiMessage])
-
+      
       await saveMessage(aiMessage)
+      setMessages(prev => [...prev, aiMessage])
     } catch (error: any) {
       const errorMessage = error.message === 'Service temporarily unavailable. Please try again later.'
         ? 'Our AI service is temporarily unavailable. Please try again in a few minutes.'
@@ -185,25 +229,33 @@ export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatPr
   }
 
   return (
-    <div className="flex flex-col h-full bg-background rounded-lg overflow-hidden border">
-      <div className="flex-grow overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 flex flex-col bg-background overflow-hidden">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
-          <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className="flex flex-col gap-2">
-              <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-              }`}>
+          <div key={index} className={cn(
+            "flex",
+            message.role === 'user' ? "justify-end" : "justify-start",
+            "animate-in fade-in-0 slide-in-from-bottom-3"
+          )}>
+            <div className="flex flex-col gap-2 max-w-[85%]">
+              <div className={cn(
+                "rounded-lg px-4 py-2",
+                message.role === 'user' 
+                  ? "bg-primary text-primary-foreground ml-auto" 
+                  : "bg-muted"
+              )}>
                 {message.content}
               </div>
-              {message.role === 'ai' && message.showCanvasButton && (
+              {(message.role === 'assistant' || message.role === 'ai') && message.showCanvasButton && (
                 <Button 
                   onClick={() => onTabChange?.('canvas')}
-                  className="flex items-center gap-2"
+                  className="self-start"
                   variant="outline"
                   size="sm"
                 >
                   View Opportunity Canvas
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               )}
             </div>
@@ -211,23 +263,28 @@ export default function AIChat({ onSuggestion, onTabChange, threadId }: AIChatPr
         ))}
         <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={handleSubmit} className="border-t p-4 bg-background">
-        <div className="flex space-x-2">
+
+      {/* Input Area */}
+      <form onSubmit={handleSubmit} className="border-t p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex gap-3">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-grow resize-none"
-            placeholder="Type your message..."
-            rows={2}
+            placeholder="Describe your social enterprise opportunity..."
+            className="min-h-[80px] resize-none"
             disabled={loading}
           />
           <Button 
             type="submit" 
             size="icon" 
-            className="h-full aspect-square"
+            className="h-[80px] w-[80px] shrink-0"
             disabled={loading}
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={20} />}
+            {loading ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <Send className="h-6 w-6" />
+            )}
           </Button>
         </div>
       </form>

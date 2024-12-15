@@ -26,8 +26,8 @@ export default function Header() {
   const userDisplayName = user?.displayName || user?.email?.split('@')[0] || 'User'
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b bg-white dark:bg-gray-900">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+    <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b bg-white dark:bg-gray-900">
+      <div className="container h-full mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
           <Sparkles className="h-6 w-6 text-blue-600" />
           <span className="text-xl font-bold brand-gradient">Giving Back Studio</span>

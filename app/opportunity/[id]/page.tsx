@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { doc, getDoc, addDoc, collection } from 'firebase/firestore'
+import { doc, getDoc, addDoc, collection, query, where, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useAuth } from '@/app/contexts/AuthContext'
 import Link from 'next/link'
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { formatDistanceToNow } from 'date-fns'
 
 interface Opportunity {
   id: string
@@ -23,6 +25,14 @@ interface Opportunity {
   likeCount: number
 }
 
+interface Response {
+  id: string
+  message: string
+  responderId: string
+  responderEmail: string
+  createdAt: any
+}
+
 export default function OpportunityPage() {
   const { id } = useParams()
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null)
@@ -30,6 +40,7 @@ export default function OpportunityPage() {
   const { user } = useAuth()
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [responses, setResponses] = useState<Response[]>([])
 
   useEffect(() => {
     const fetchOpportunity = async () => {
@@ -55,24 +66,44 @@ export default function OpportunityPage() {
     fetchOpportunity()
   }, [id])
 
+  useEffect(() => {
+    if (!id) return
+
+    const q = query(
+      collection(db, 'responses'),
+      where('opportunityId', '==', id),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newResponses = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Response[]
+      setResponses(newResponses)
+    })
+
+    return () => unsubscribe()
+  }, [id])
+
   const handleSendMessage = async () => {
     if (!user || !message.trim() || !opportunity) return
     
     setSending(true)
     try {
       // Add the response to a 'responses' collection
-      await addDoc(collection(db, 'responses'), {
+      const responseData = {
         opportunityId: opportunity.id,
         message: message.trim(),
         responderId: user.uid,
         responderEmail: user.email,
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
         opportunityCreatorId: opportunity.createdBy,
         opportunityTitle: opportunity.title
-      })
+      }
 
+      await addDoc(collection(db, 'responses'), responseData)
       setMessage('')
-      alert('Your message has been sent!')
     } catch (error) {
       console.error('Error sending message:', error)
       alert('Failed to send message. Please try again.')
@@ -135,6 +166,33 @@ export default function OpportunityPage() {
             </Button>
           </Card>
         )}
+
+        <div className="mt-8 space-y-4">
+          <h3 className="text-xl font-semibold">Responses ({responses.length})</h3>
+          {responses.map((response) => (
+            <Card key={response.id} className="p-4">
+              <div className="flex items-start gap-4">
+                <Avatar>
+                  <AvatarFallback>
+                    {response.responderEmail?.charAt(0).toUpperCase() || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <p className="font-medium">{response.responderEmail}</p>
+                    <span className="text-sm text-muted-foreground">
+                      {response.createdAt?.toDate ? 
+                        formatDistanceToNow(response.createdAt.toDate(), { addSuffix: true }) :
+                        'Just now'
+                      }
+                    </span>
+                  </div>
+                  <p className="mt-2 text-gray-600 dark:text-gray-300">{response.message}</p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   )

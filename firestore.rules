@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Threads collection
+    match /threads/{threadId} {
+      allow read, write: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Chats collection
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.threadId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.threadIds
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Responses collection
+    match /responses/{responseId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        resource.data.responderId == request.auth.uid ||
+        resource.data.opportunityCreatorId == request.auth.uid ||
+        resource.data.opportunityId == resource.data.opportunityId
+      );
+    }
+
+    // Opportunities collection
+    match /opportunities/{opportunityId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && 
+        resource.data.createdBy == request.auth.uid;
+    }
+
+    // Users collection (if needed)
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+} 
