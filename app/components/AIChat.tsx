@@ -208,7 +208,7 @@ export default function AIChat({ onSuggestion, onTabChange, threadId, onFirstMes
 
       const opportunity = await generateOpportunityCanvas(input)
       
-      if ('error' in opportunity) {
+      if ('error' in opportunity && typeof opportunity.error === 'string') {
         throw new Error(opportunity.error)
       }
       
