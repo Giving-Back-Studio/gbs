@@ -34,6 +34,7 @@ interface Thread {
     title: string;
     description: string;
     sections: {
+      roles: { heading: string; items: string[] };
       nextSteps: { heading: string; items: string[] };
       connections: { heading: string; items: string[] };
     };
