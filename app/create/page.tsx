@@ -149,9 +149,19 @@ export default function Create() {
 
   const handleSuggestion = async (suggestionStr: string) => {
     try {
-      const suggestion = JSON.parse(suggestionStr)
+      const suggestion = JSON.parse(suggestionStr) as {
+        title: string;
+        description: string;
+        sections: {
+          roles: { heading: string; items: string[] };
+          nextSteps: { heading: string; items: string[] };
+          connections: { heading: string; items: string[] };
+        };
+        tags: string[];
+        status: 'draft' | 'published';
+      }
       
-      const updatedThread = {
+      const updatedThread: Thread = {
         ...threads.find(t => t.id === activeThreadId)!,
         title: suggestion.title || 'New Opportunity',
         content: {
@@ -163,7 +173,7 @@ export default function Create() {
             connections: suggestion.sections?.connections || { heading: "Required Connections", items: [] }
           },
           tags: suggestion.tags || [],
-          status: 'draft'
+          status: 'draft' as const
         }
       }
       
