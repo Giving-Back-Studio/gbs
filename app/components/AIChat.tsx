@@ -46,6 +46,16 @@ interface OpportunityError {
   error: string;
 }
 
+// Add interface for opportunity response
+interface OpportunityResponse {
+  title: string;
+  description: string;
+  roles?: string[];
+  nextSteps?: string[];
+  connections?: string[];
+  error?: string; // Add error property
+}
+
 export default function AIChat({ onSuggestion, onTabChange, threadId, onFirstMessage }: AIChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -137,11 +147,11 @@ export default function AIChat({ onSuggestion, onTabChange, threadId, onFirstMes
 
       if (!response.ok) throw new Error('Failed to generate opportunity')
       
-      const data = await response.json()
+      const data = await response.json() as OpportunityResponse
       
       // Type guard to check if response is an error
-      if ('error' in data) {
-        throw new Error((data as OpportunityError).error)
+      if ('error' in data && data.error) {
+        throw new Error(data.error)
       }
       
       const formattedData = {
